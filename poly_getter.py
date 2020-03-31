@@ -10,7 +10,7 @@ class PolyGetter(object):
     def __init__(self, radius, k, theta=0):
         self.radius = radius
         self.k = k  # 正多边形的边数
-        self.theta = math.radians(theta)  # 起始角度: degree
+        self.theta = theta  # 起始角度: degree
 
     def from_center(self, center):
         """ 输入中心点的坐标，返回对应的正多边形
@@ -40,6 +40,6 @@ class PolyGetter(object):
         dist = self.radius * math.cos(math.pi / self.k)  # 计算中心到边的距离
         p = PolyGetter(2 * dist,
                        self.k,
-                       math.degrees(self.theta + math.pi / self.k))
+                       self.theta + 180 / self.k)
         centers = list(p.from_center(poly.centroid).exterior.coords)
         return [Polygon(self.from_center(Point(c))) for c in centers]
