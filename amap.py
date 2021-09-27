@@ -5,6 +5,9 @@ import requests
 
 class AMap(object):
 
+    """ 用高德地图提供的API获取"地区"边界
+    """
+
     def __init__(self, key):
         self._key = key
 
