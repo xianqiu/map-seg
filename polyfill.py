@@ -1,14 +1,13 @@
-import math
-
 from shapely.geometry import Polygon, MultiPolygon, Point
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 class PolyGetter(object):
     """ 生成正多边形对象
     """
 
-    def __init__(self, radius, k, theta=0):
+    def __init__(self, radius, k, theta=0.0):
         """ 生成正k边形（的顶点）
         """
         self.radius = radius  # 半径
@@ -21,8 +20,8 @@ class PolyGetter(object):
         """
 
         def get_xy(i):
-            x = center.x + self.radius * math.cos(2 * math.pi * (i / self.k + self.theta / 360))
-            y = center.y + self.radius * math.sin(2 * math.pi * (i / self.k + self.theta / 360))
+            x = center.x + self.radius * np.cos(2 * np.pi * (i / self.k + self.theta / 360))
+            y = center.y + self.radius * np.sin(2 * np.pi * (i / self.k + self.theta / 360))
             return x, y
 
         return Polygon([Point(get_xy(i)) for i in range(self.k)])
@@ -32,15 +31,71 @@ class PolyGetter(object):
         :param vertex: 顶点坐标，Point对象
         :param i: 顶点的编号（按极坐标顺序编号）
         """
-        c_x = vertex.x - self.radius * math.cos(2 * math.pi * i / self.k + self.theta)
-        c_y = vertex.y - self.radius * math.sin(2 * math.pi * i / self.k + self.theta)
+        c_x = vertex.x - self.radius * np.cos(2 * np.pi * i / self.k + self.theta)
+        c_y = vertex.y - self.radius * np.sin(2 * np.pi * i / self.k + self.theta)
         return self.from_center(Point(c_x, c_y))
+
+    @staticmethod
+    def _get_mirror(point, line):
+        """ 计算 point 关于直线的对称点
+        :param point: (x0, y0)
+        :line: (x1, y1, x2, y2)
+        :return: (x, y)
+        """
+        x0, y0 = point
+        x1, y1, x2, y2 = line
+        if abs(x2 - x1) > 1e-6:
+            k = (y2 - y1) / (x2 - x1)
+            d = (k * x0 - y0 + y1 - k * x1) / (k ** 2 + 1)
+            x = x0 - 2 * k * d
+            y = y0 + 2 * d
+        else:  # 斜率正无穷（垂直线）
+            x = x0 + 2 * (x1 - x0)
+            y = y0
+        return x, y
+
+    def _get_neighbor(self, center, vertex):
+        x0, y0 = center
+        eta = (vertex[0] - x0) / self.radius
+        if abs(eta) > 1:  # 浮点数问题，有可能出现 1.000000000001
+            eta = np.round(eta, 6)
+        theta = np.arccos(eta)
+        if vertex[1] - y0 < 0:
+            theta = -theta
+
+        coords = []
+        delta = 2 * np.pi / self.k
+        for i in range(self.k):
+            x = x0 + self.radius * np.cos(theta + i * delta)
+            y = y0 + self.radius * np.sin(theta + i * delta)
+            coords.append((x, y))
+        return Polygon(coords)
 
     def neighbors_of(self, poly):
         """ 输入正多边形，返回它所有邻接的多边形
         :param poly: 多边形，Polygon对象
         """
-        dist = self.radius * math.cos(math.pi / self.k)  # 计算中心到边的距离
+        # 四边形和六边形的情况
+        # self._neighbors_of_fast 算得快一些
+        if self.k == 4 or self.k == 6:
+            return self._neighbors_of_fast(poly)
+        # 通用情况（算得慢一些）
+        center = (poly.centroid.x, poly.centroid.y)
+        coords = list(poly.exterior.coords)
+        res = []
+        for i in range(self.k):
+            line = list(coords[i]) + list(coords[i+1])
+            mirror = self._get_mirror(center, line)
+            p = self._get_neighbor(mirror, coords[i])
+            res.append(p)
+        return res
+
+    def _neighbors_of_fast(self, poly):
+        """ 输入正多边形，返回它所有邻接的多边形
+            **注意** 仅对 k= 4, 6 有效
+        :param poly: 多边形，Polygon对象
+        """
+        dist = self.radius * np.cos(np.pi / self.k)  # 计算中心到边的距离
         p = PolyGetter(2 * dist,
                        self.k,
                        self.theta + 180 / self.k)
@@ -92,9 +147,13 @@ class PolyFill(object):
         return self._result
 
     def show(self):
-        plt.plot(self._center.x, self._center.y, 'x')
+        # draw polygons
         for points in self._result:
             plt.plot(*list(zip(*points)))
+        # draw center
+        plt.plot(self._center.x, self._center.y, 'x')
+        # draw boundary
+        plt.plot(*list(zip(*self._boundary.exterior.coords)))
         plt.axis('equal')
         plt.show()
 
@@ -139,7 +198,7 @@ class PolyFill(object):
         注意浮点数精度问题.
         """
         c = poly.centroid
-        return '%.6f,%.6f' % (c.x, c.y)
+        return '%.2f,%.2f' % (c.x, c.y)
 
     def _is_searched(self, poly):
         """ 判断多边形是否存在
@@ -183,10 +242,11 @@ class PolyFill(object):
 if __name__ == '__main__':
 
     def generate_boundary():
-        # 生成一个半径为10的正四边形。
-        return PolyGetter(radius=10, k=4, theta=0).from_center(Point(0, 0))
+        # 生成一个半径为10的正四边形
+        return PolyGetter(radius=10, k=4, theta=45).from_center(Point(0, 0))
 
     pf = PolyFill(generate_boundary(), center=Point(0, 0))
-    pf.set_params(radius=2, k=6)  # 用半径为2的正六边形填充
+    pf.set_params(radius=1.5, k=6)  # 正六边形填充
+    # pf.set_params(radius=1.5, k=4)  # 正方形填充
+    # pf.set_params(radius=1.5, k=3)  # 正三角形填充
     pf.fill().show()
-

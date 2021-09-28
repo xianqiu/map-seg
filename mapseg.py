@@ -75,6 +75,6 @@ if __name__ == '__main__':
     import data
     coord = data.boundary_district_330106
     ms = MapSeg(coord)
-    ms.set_params(radius=1000, k=6).segment()  # 六边形分割: 半径1000米
-    # ms.set_params(radius=2000, k=4).segment()  # 四边形分割: 半径2000米
-    # ms.set_params(radius=4000, k=3).segment()  # 三角形分割: 半径4000米
+    # ms.set_params(radius=2000, k=6).segment()  # 六边形分割（半径2000米）
+    ms.set_params(radius=2000, k=4, theta=45).segment()  # 四边形分割
+    # ms.set_params(radius=2000, k=3).segment()  # 三角形分割
