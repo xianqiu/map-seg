@@ -8,8 +8,6 @@ class PolyGetter(object):
     """
 
     def __init__(self, radius, k, theta=0.0):
-        """ 生成正k边形（的顶点）
-        """
         self.radius = radius  # 半径
         self.k = k  # 正多边形的边数
         self.theta = theta  # 起始角度: degree
@@ -25,15 +23,6 @@ class PolyGetter(object):
             return x, y
 
         return Polygon([Point(get_xy(i)) for i in range(self.k)])
-
-    def from_vertex(self, vertex, i):
-        """ 给定顶点，返回对应的正k边形
-        :param vertex: 顶点坐标，Point对象
-        :param i: 顶点的编号（按极坐标顺序编号）
-        """
-        c_x = vertex.x - self.radius * np.cos(2 * np.pi * i / self.k + self.theta)
-        c_y = vertex.y - self.radius * np.sin(2 * np.pi * i / self.k + self.theta)
-        return self.from_center(Point(c_x, c_y))
 
     @staticmethod
     def _get_mirror(point, line):
@@ -109,19 +98,27 @@ class PolyFill(object):
 
     def __init__(self, boundary, center):
         """
-        :param boundary: 被分割的多边形, Polygon对象 或 顶点坐标[(x0,y0), (x1, y1), ...]
-        :param center: 锚点，以center为出发点进行分割, Point对象
+        :param boundary: 被分割的多边形 [(x0,y0), (x1, y1), ...]
+        :param center: 锚点 [x, y]，以center为出发点进行填充
         """
+        # 输入
         self._boundary = boundary
         if not isinstance(self._boundary, Polygon):
             self._boundary = Polygon(self._boundary)
         self._center = center
+        if not isinstance(self._center, Point):
+            self._center = Point(self._center)
         self._radius = None
         self._k = None
         self._theta = None
+        # 输出
+        # [[(x11, y11), (x12, y12)...]  # 多边形1
+        #  [(x21, y21), (x22, y22)...]  # 多边形2
+        #     ...]  # ...
+        self._result = []  # 保存为多边形的顶点坐标集合
+        # 辅助变量
         self._poly_getter = None
         self._res_polys = []  # 填充结果（保存为多边形对象）
-        self._result = []  # 计算结果（保存为多边形的顶点坐标集合）
         # 用来保存已经搜索过的正多边形（用中心点来表示）
         self._searched_polys = set({})
 
@@ -158,14 +155,8 @@ class PolyFill(object):
         plt.show()
 
     def fill(self):
-        """
-        :return:
-        [[(x11, y11), (x12, y12) ...]  # 多边形1
-         [(x21, y21), (x22, y22) ...]  # 多边形2
-         ...]                          # ...
-        """
         assert self._radius, ValueError("set parameters first!")
-
+        # 生成多边形对象
         start_poly = self._poly_getter.from_center(self._center)
         # 以start_poly为起点执行BFS填充boundary
         self._fill_by_bfs(start_poly)
@@ -174,7 +165,7 @@ class PolyFill(object):
 
     def _fill_by_bfs(self, start_poly):
         """ 给定初始的填充多边形, 按照BFS的方式填充周围的区域
-        以k多边形为例(k=3,4,6), 有k个多边形与它相邻.
+        以k多边形为例(k=3,4,6), 有k个多边形与它相邻
         """
         self._mark_as_searched(start_poly)
         q = [start_poly]
@@ -194,8 +185,8 @@ class PolyFill(object):
 
     @staticmethod
     def _get_poly_id(poly):
-        """ 用多边形的中心点的位置判断两个多边形是否相同.
-        注意浮点数精度问题.
+        """ 用多边形的中心点的位置判断两个多边形是否相同
+        注意浮点数精度问题
         """
         c = poly.centroid
         return '%.2f,%.2f' % (c.x, c.y)
@@ -206,7 +197,7 @@ class PolyFill(object):
         return self._get_poly_id(poly) in self._searched_polys
 
     def _append_to_result(self, poly):
-        """ 把正多边形poly保存到结果集.
+        """ 把正多边形poly保存到结果集
         """
         # poly与boundary取交集, 然后保存结果
         s = self._boundary.intersection(poly)
@@ -221,7 +212,7 @@ class PolyFill(object):
                 self._res_polys.append(p)
 
     def _get_feasible_neighbors(self, poly):
-        """ 计算与poly邻接的有效的正多边形, 然后标记为'已搜索'.
+        """ 计算与poly邻接的有效的正多边形, 然后标记为'已搜索'
         """
         def mark_searched(p):
             self._mark_as_searched(p)
@@ -250,3 +241,4 @@ if __name__ == '__main__':
     # pf.set_params(radius=1.5, k=4)  # 正方形填充
     # pf.set_params(radius=1.5, k=3)  # 正三角形填充
     pf.fill().show()
+
