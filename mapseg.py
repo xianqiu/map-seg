@@ -38,20 +38,29 @@ def to_js(points, path, var_name):
 
 
 class MapSeg(object):
+    """ 用正多边形分割地图区域
+    """
 
     def __init__(self, coordinates):
+        """
+        :param coordinates: [(x0,y0), (x1,y1), ...]
+        """
         self._coordinates = coordinates
         self._radius = None
         self._k = None
         self._theta = None
 
     def set_params(self, radius, k, theta=0):
-        self._radius = radius
-        self._k = k
-        self._theta = theta
+        """ 参数设置
+        """
+        self._radius = radius  # 半径
+        self._k = k  # 正多边形的边数 k = 3, 4, 6
+        self._theta = theta  # 初始的角度
         return self
 
     def segment(self):
+        """ 用PolyFill分割地图，并展示结果
+        """
         # 把经纬度投影到二位平面
         boundary_plane = Polygon(project_to_plane(self._coordinates))
         # 用正多边形填充
@@ -66,15 +75,16 @@ class MapSeg(object):
         to_js(result, directory / 'data_bricks.js', 'MS.data.bricks ')
         # 打开 web 文件夹下的 index.html
         # 查看可视化的结果
-        # 如果没有自动弹出网页，可以手动打开 index.html
+        # 如果没有自动弹出网页，可以手动打开 ./web/index.html
         path = directory.absolute() / 'index.html'
         webbrowser.open('file://' + str(path))
 
 
 if __name__ == '__main__':
     import data
+    # 杭州市西湖区的边界
     coord = data.boundary_district_330106
     ms = MapSeg(coord)
-    # ms.set_params(radius=2000, k=6).segment()  # 六边形分割（半径2000米）
+    ms.set_params(radius=2000, k=6).segment()  # 六边形分割（半径2000米）
     # ms.set_params(radius=2000, k=4).segment()  # 四边形分割
-    ms.set_params(radius=2000, k=3).segment()  # 三角形分割
+    # ms.set_params(radius=2000, k=3).segment()  # 三角形分割
