@@ -16,7 +16,6 @@ class PolyGetter(object):
         """ 输入中心点的坐标，返回对应的正多边形
         :param center: Point对象
         """
-
         def get_xy(i):
             x = center.x + self.radius * np.cos(2 * np.pi * (i / self.k + self.theta / 360))
             y = center.y + self.radius * np.sin(2 * np.pi * (i / self.k + self.theta / 360))
@@ -81,7 +80,7 @@ class PolyGetter(object):
 
     def _neighbors_of_fast(self, poly):
         """ 输入正多边形，返回它所有邻接的多边形
-            **注意** 仅对 k= 4, 6 有效
+            **注意** 仅对 k= 4, 6 有效（三角形无效）
         :param poly: 多边形，Polygon对象
         """
         dist = self.radius * np.cos(np.pi / self.k)  # 计算中心到边的距离
